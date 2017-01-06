@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+      *{margin:0;padding:0;box-sizing:border-box;}
+      html,body{height:100%;min-width:1024px;min-height:758px;}
+      .container{height:100%;}
+      .title{height:40px;background:yellow;font-size:30px;line-height:40px;text-align:center;}
+      .main{height:calc(100% - 90px);}
+      .msgCtrl{height:50px;}
+      .main>.msgWindow{width:calc(100% - 200px);height:100%;float:left;overflow-y:scroll;}
+      .main>.userList{width:200px;height:100%;float:right;overflow-y:scroll;}
+      .main>ul{border:2px solid #aaa;}
+      .msgWindow>li,.userList>li{padding:5px 10px;list-style:none;}
+      .userList .user,.msgWindow .name,.msgWindow .info,.msgWindow .announcement{padding:4px 10px;border-radius:10px;display:inline-block;}
+      .msgWindow .name{background:pink;}
+      .msgWindow .info{background:lightblue;margin-left:10px;}
+      .msgWindow .announcement{width:100%;text-align:center;background:#eee;}
+      .userList .user{background:lightblue;width:100%;text-align:center;}
+      .msgCtrl{background:lightblue;}
+      .msgBox{width:calc(100% - 110px);height:40px;margin:5px 5px;text-indent:10px;}
+      .sendBtn{width:90px;height:40px;margin:5px 5px;background:red;color:#fff;}
+    </style>
+    <script type="text/javascript" src="../js/cookie.js"></script>
+    <script type="text/javascript">
+      (function(){
+        let name = getCookie("name");
+        if(!name){
+          name = prompt("输入你的姓名!", "");
+          setCookie("name", name, 30);
+        }
+        window.$username = name;
+      })();
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="title">我的聊天室</div>
+      <div class="main">
+        <ul id="msgWindow" class="msgWindow">
+        </ul>
+        <ul id="userList" class="userList">
+        </ul>
+      </div>
+      <div class="msgCtrl">
+        <input type="text" class="msgBox" id="msgBox"><button id="sendBtn" class="sendBtn">SEND</button>
+      </div>
+    </div>
+    <script type="text/javascript" src="../js/jquery.min.js"></script>
+    <script type="text/javascript" src="../js/socket.io.js"></script>
+    <script type="text/javascript">
+      'use strict';
+      $(function(){
+
+        const socket = io('172.16.0.27:8080');
+        var connected = false,
+            msgWindow = $("#msgWindow"),
+            sendBtn = $("#sendBtn"),
+            userList = $("#userList"),
+            msgBox = $("#msgBox");
+
+        sendBtn.bind("click", function(){
+          var val = $.trim(msgBox.val());
+          if(val === "" || !connected) return;
+          socket.emit("new message", {
+            name: $username,
+            message: val
+          });
+          msgBox.val("");
+        });
+
+        $(document).bind("keydown", function(e){
+          if(e.keyCode === 13){
+            sendBtn.trigger("click");
+          }
+        });
+
+        $("window").bind("beforeunload", function(){
+          alert("asd");
+        });
+
+        socket.emit("add user", $username);
+
+        socket.on("message", function(msgObj){
+          const {name, message} = msgObj;
+          msgWindow.append($('<li><span class="name">'+name+'</span><span class="info">'+message+'</span></li>')[0]);
+          msgWindow[0].scrollTop = msgWindow[0].scrollHeight - msgWindow[0].offsetHeight;
+        });
+        socket.on("login", function(Obj){
+          connected = true;
+          console.log(Obj);
+          msgWindow.append($('<li><span class="announcement">'+Obj.name+'加入了聊天室!</span></li>')[0]);
+          updateList(JSON.parse(Obj.users));
+        });
+
+        socket.on("user joined", function(Obj){
+          msgWindow.append($('<li><span class="announcement">'+Obj.name+'加入了聊天室!</span></li>')[0]);
+          updateList(JSON.parse(Obj.users));
+        });
+
+        function updateList(users){
+          userList.empty("");
+          for(var user of users){
+            userList.append($('<li><span class="user">'+user+'</span></li>'));
+          }
+        }
+
+      });
+    </script>
+  </body>
+</html>
